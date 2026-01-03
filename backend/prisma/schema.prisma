@@ -1,0 +1,183 @@
+// This is your Prisma schema file
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                  String    @id @default(uuid())
+  instagramUserId     String    @unique @map("instagram_user_id")
+  username            String
+  fullName            String?   @map("full_name")
+  profilePictureUrl   String?   @map("profile_picture_url")
+  email               String?
+  accessToken         String?   @map("access_token")  // Encrypted
+  refreshToken        String?   @map("refresh_token") // Encrypted
+  tokenExpiresAt      DateTime? @map("token_expires_at")
+  accountType         String    @default("personal") @map("account_type")
+  isVerified          Boolean   @default(false) @map("is_verified")
+  followerCount       Int       @default(0) @map("follower_count")
+  followingCount      Int       @default(0) @map("following_count")
+  mediaCount          Int       @default(0) @map("media_count")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+  lastSyncAt          DateTime? @map("last_sync_at")
+  settings            Json?
+
+  followers           Follower[]
+  followerChanges     FollowerChange[]
+  analyticsSnapshots  AnalyticsSnapshot[]
+  posts               Post[]
+  stories             Story[]
+  aiSuggestions       AISuggestion[]
+  sessions            Session[]
+
+  @@index([instagramUserId])
+  @@index([username])
+  @@index([createdAt])
+  @@map("users")
+}
+
+model Follower {
+  id                  String    @id @default(uuid())
+  userId              String    @map("user_id")
+  followerInstagramId String    @map("follower_instagram_id")
+  username            String
+  fullName            String?   @map("full_name")
+  profilePictureUrl   String?   @map("profile_picture_url")
+  followedAt          DateTime? @map("followed_at")
+  isFollowingBack     Boolean   @default(false) @map("is_following_back")
+  engagementScore     Float     @default(0) @map("engagement_score")
+  lastInteractionAt   DateTime? @map("last_interaction_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, followerInstagramId])
+  @@index([userId])
+  @@index([followerInstagramId])
+  @@index([engagementScore(sort: Desc)])
+  @@map("followers")
+}
+
+model FollowerChange {
+  id                  String   @id @default(uuid())
+  userId              String   @map("user_id")
+  followerInstagramId String   @map("follower_instagram_id")
+  username            String
+  changeType          String   @map("change_type") // 'gained', 'lost'
+  detectedAt          DateTime @default(now()) @map("detected_at")
+  metadata            Json?
+
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, detectedAt(sort: Desc)])
+  @@index([changeType])
+  @@map("follower_changes")
+}
+
+model AnalyticsSnapshot {
+  id              String   @id @default(uuid())
+  userId          String   @map("user_id")
+  snapshotDate    DateTime @map("snapshot_date") @db.Date
+  followerCount   Int      @map("follower_count")
+  followingCount  Int      @map("following_count")
+  engagementRate  Float?   @map("engagement_rate")
+  profileViews    Int?     @map("profile_views")
+  websiteClicks   Int?     @map("website_clicks")
+  reach           Int?
+  impressions     Int?
+  metrics         Json?
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, snapshotDate])
+  @@index([userId, snapshotDate(sort: Desc)])
+  @@map("analytics_snapshots")
+}
+
+model Post {
+  id               String   @id @default(uuid())
+  userId           String   @map("user_id")
+  instagramMediaId String   @unique @map("instagram_media_id")
+  mediaType        String   @map("media_type") // 'photo', 'video', 'carousel'
+  mediaUrl         String?  @map("media_url")
+  thumbnailUrl     String?  @map("thumbnail_url")
+  caption          String?
+  permalink        String?
+  likeCount        Int      @default(0) @map("like_count")
+  commentCount     Int      @default(0) @map("comment_count")
+  engagementRate   Float?   @map("engagement_rate")
+  postedAt         DateTime? @map("posted_at")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, postedAt(sort: Desc)])
+  @@index([engagementRate(sort: Desc)])
+  @@map("posts")
+}
+
+model Story {
+  id               String   @id @default(uuid())
+  userId           String   @map("user_id")
+  instagramStoryId String   @unique @map("instagram_story_id")
+  mediaType        String   @map("media_type")
+  mediaUrl         String?  @map("media_url")
+  thumbnailUrl     String?  @map("thumbnail_url")
+  viewCount        Int      @default(0) @map("view_count")
+  reach            Int?
+  impressions      Int?
+  postedAt         DateTime? @map("posted_at")
+  expiresAt        DateTime? @map("expires_at")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, postedAt(sort: Desc)])
+  @@index([expiresAt])
+  @@map("stories")
+}
+
+model AISuggestion {
+  id              String   @id @default(uuid())
+  userId          String   @map("user_id")
+  suggestionType  String   @map("suggestion_type") // 'caption', 'hashtag', 'best_time'
+  content         String
+  metadata        Json?
+  used            Boolean  @default(false)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, suggestionType])
+  @@map("ai_suggestions")
+}
+
+model Session {
+  id              String   @id @default(uuid())
+  userId          String   @map("user_id")
+  sessionToken    String   @unique @map("session_token")
+  deviceInfo      Json?    @map("device_info")
+  ipAddress       String?  @map("ip_address")
+  userAgent       String?  @map("user_agent")
+  isActive        Boolean  @default(true) @map("is_active")
+  expiresAt       DateTime @map("expires_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  lastActivityAt  DateTime @default(now()) @map("last_activity_at")
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([sessionToken])
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
