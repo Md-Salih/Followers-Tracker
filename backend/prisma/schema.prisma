@@ -5,8 +5,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 model User {
@@ -27,7 +27,7 @@ model User {
   createdAt           DateTime  @default(now()) @map("created_at")
   updatedAt           DateTime  @updatedAt @map("updated_at")
   lastSyncAt          DateTime? @map("last_sync_at")
-  settings            Json?
+  settings            String?   // JSON string for SQLite
 
   followers           Follower[]
   followerChanges     FollowerChange[]
@@ -73,7 +73,7 @@ model FollowerChange {
   username            String
   changeType          String   @map("change_type") // 'gained', 'lost'
   detectedAt          DateTime @default(now()) @map("detected_at")
-  metadata            Json?
+  metadata            String?  // JSON string for SQLite
 
   user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -85,7 +85,7 @@ model FollowerChange {
 model AnalyticsSnapshot {
   id              String   @id @default(uuid())
   userId          String   @map("user_id")
-  snapshotDate    DateTime @map("snapshot_date") @db.Date
+  snapshotDate    DateTime @map("snapshot_date")
   followerCount   Int      @map("follower_count")
   followingCount  Int      @map("following_count")
   engagementRate  Float?   @map("engagement_rate")
@@ -93,7 +93,7 @@ model AnalyticsSnapshot {
   websiteClicks   Int?     @map("website_clicks")
   reach           Int?
   impressions     Int?
-  metrics         Json?
+  metrics         String?  // JSON string for SQLite
   createdAt       DateTime @default(now()) @map("created_at")
 
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -152,7 +152,7 @@ model AISuggestion {
   userId          String   @map("user_id")
   suggestionType  String   @map("suggestion_type") // 'caption', 'hashtag', 'best_time'
   content         String
-  metadata        Json?
+  metadata        String?  // JSON string for SQLite
   used            Boolean  @default(false)
   createdAt       DateTime @default(now()) @map("created_at")
 
@@ -166,7 +166,7 @@ model Session {
   id              String   @id @default(uuid())
   userId          String   @map("user_id")
   sessionToken    String   @unique @map("session_token")
-  deviceInfo      Json?    @map("device_info")
+  deviceInfo      String?  @map("device_info") // JSON string for SQLite
   ipAddress       String?  @map("ip_address")
   userAgent       String?  @map("user_agent")
   isActive        Boolean  @default(true) @map("is_active")
